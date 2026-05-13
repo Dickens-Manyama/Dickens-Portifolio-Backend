@@ -18,7 +18,15 @@ function mapProfile(profile) {
     githubUrl: profile.github,
     linkedinUrl: profile.linkedin,
     careerObjective: "",
-    strengths: [],
+    strengths: [
+      "Practical problem solving for real-world needs",
+      "End-to-end system building (backend, APIs, data pipelines)",
+      "Comfortable across software and data science work",
+      "Fast learner who adapts to new tools",
+      "Clear, clean, and maintainable code",
+      "Collaborative communication in teams",
+      "Focus on reliability, performance, and scale",
+    ],
   };
 }
 

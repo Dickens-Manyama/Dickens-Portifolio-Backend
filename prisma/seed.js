@@ -9,7 +9,7 @@ async function main() {
     name: "Dickens Deus Manyama",
     title: "Software Developer | Data Scientist | IT Systems & Networking",
     summary:
-      "Cloud and software developer with experience in Laravel, React, APIs, and data science.",
+      "Hands-on Software Developer and Data Scientist focused on reliable, data-driven systems. Builds production-ready apps, integrates APIs, and turns raw data into useful insights across the stack.",
     email: "dickensmanyama8@gmail.com",
     phone: "0679 165 468 / 0692 501 112",
     github: "https://github.com/Dickens-Manyama",
