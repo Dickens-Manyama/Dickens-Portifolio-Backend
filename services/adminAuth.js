@@ -80,6 +80,10 @@ async function requireAdminAuth(req, res, next) {
     // Inactivity timeout enforcement and update
     // Configurable via ADMIN_INACTIVITY_TIMEOUT_MS (milliseconds). Default: 300000 (5 minutes)
     const timeoutMs = parseInt(process.env.ADMIN_INACTIVITY_TIMEOUT_MS || "300000", 10);
+    req.adminSession = {
+      timeoutMs,
+      lastActivityAt: null,
+    };
 
     if (decoded && decoded.email) {
       try {
@@ -94,6 +98,7 @@ async function requireAdminAuth(req, res, next) {
 
         const now = new Date();
         const lastActivity = row && row.last_activity ? new Date(row.last_activity) : null;
+        req.adminSession.lastActivityAt = lastActivity ? lastActivity.toISOString() : null;
 
         if (lastActivity && timeoutMs > 0) {
           const diff = now - lastActivity; // ms

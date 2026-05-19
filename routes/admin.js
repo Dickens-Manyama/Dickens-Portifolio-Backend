@@ -20,7 +20,7 @@ const {
   updateAdminEducation,
   deleteAdminEducation,
 } = require("../controllers/adminEducationController");
-const { getAdminContacts } = require("../controllers/adminContactsController");
+const { getAdminContacts, deleteAdminContact, getAdminSession } = require("../controllers/adminContactsController");
 
 router.post("/auth/login", loginAdmin);
 
@@ -45,5 +45,7 @@ router.put("/education/:id", updateAdminEducation);
 router.delete("/education/:id", deleteAdminEducation);
 
 router.get("/contacts", getAdminContacts);
+router.delete("/contacts/:id", deleteAdminContact);
+router.get("/session", getAdminSession);
 
 module.exports = router;
