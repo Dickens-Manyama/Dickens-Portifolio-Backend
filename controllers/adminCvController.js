@@ -1,6 +1,7 @@
 const { prisma } = require("../lib/prisma");
 const { ok, fail } = require("../services/responses");
 const mammoth = require("mammoth");
+const pdfParse = require("pdf-parse");
 
 const CV_DOWNLOAD_PATH = "/api/profile/cv";
 
@@ -107,6 +108,11 @@ async function getCvContent(req, res) {
       if (ext === "docx" || profile.cvMime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
         const extracted = await mammoth.extractRawText({ buffer });
         return ok(res, { filename: fileName, content: extracted.value || "" });
+      }
+
+      if (ext === "pdf" || profile.cvMime === "application/pdf") {
+        const extracted = await pdfParse(buffer);
+        return ok(res, { filename: fileName, content: extracted.text || "" });
       }
 
       return fail(res, 415, "CV is not editable as text.");
