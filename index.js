@@ -8,16 +8,21 @@ const morgan = require("morgan");
 const apiRoutes = require("./routes");
 const { corsOptions } = require("./services/cors");
 const { fail } = require("./services/responses");
+const { apiRateLimit } = require("./services/security");
+const { requireHttps } = require("./services/https");
 const path = require("path");
 
 const app = express();
 
 // Trust Render/Proxy headers (needed for correct IP/https detection).
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
 
+app.use(requireHttps);
 app.use(helmet());
 app.use(cors(corsOptions()));
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "4mb" }));
+app.use(apiRateLimit);
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
 // Serve public files (uploads, static assets)

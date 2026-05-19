@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const { loginAdmin } = require("../controllers/adminAuthController");
 const { requireAdminAuth } = require("../services/adminAuth");
+const { loginRateLimit } = require("../services/security");
 const { getAdminProfile, upsertAdminProfile } = require("../controllers/adminProfileController");
 const {
   getAdminProjects,
@@ -23,7 +24,7 @@ const {
 const { getAdminContacts, deleteAdminContact, getAdminSession } = require("../controllers/adminContactsController");
 const { getCvMetadata, uploadCv, deleteCv, getCvContent } = require("../controllers/adminCvController");
 
-router.post("/auth/login", loginAdmin);
+router.post("/auth/login", loginRateLimit, loginAdmin);
 
 router.use(requireAdminAuth);
 
