@@ -1,9 +1,6 @@
 const { prisma } = require("../lib/prisma");
 const { ok, fail } = require("../services/responses");
-const fs = require("fs").promises;
-const path = require("path");
-
-const CV_METADATA = path.join(__dirname, "..", "public", "uploads", "cv", "current.json");
+const CV_DOWNLOAD_PATH = "/api/profile/cv";
 
 function splitList(value, pattern) {
   if (!value) return [];
@@ -37,8 +34,8 @@ function mapProfile(profile) {
       Array.isArray(profile.strengths) && profile.strengths.length
         ? profile.strengths
         : DEFAULT_STRENGTHS,
-    cvUrl: profile.cvUrl || "",
-    cvOriginalName: profile.cvOriginalName || "",
+    cvUrl: profile.cvData ? CV_DOWNLOAD_PATH : "",
+    cvOriginalName: profile.cvData ? profile.cvOriginalName || "" : "",
   };
 }
 
@@ -46,22 +43,28 @@ async function getProfile(req, res) {
   try {
     const profile = await prisma.profile.findFirst({ orderBy: { id: "asc" } });
     if (!profile) return fail(res, 404, "Profile not found.");
-    // Attach CV metadata if present in public uploads
-    try {
-      const raw = await fs.readFile(CV_METADATA, "utf8");
-      const meta = JSON.parse(raw);
-      if (meta && meta.url) {
-        profile.cvUrl = meta.url;
-        profile.cvOriginalName = meta.originalName || meta.filename || "";
-      }
-    } catch (e) {
-      // ignore if missing
-    }
     return ok(res, mapProfile(profile));
   } catch (err) {
     return fail(res, 500, "Failed to load profile.", err?.message);
   }
 }
 
-module.exports = { getProfile };
+async function getProfileCv(req, res) {
+  try {
+    const profile = await prisma.profile.findFirst({ orderBy: { id: "asc" } });
+    if (!profile || !profile.cvData) return fail(res, 404, "CV not found.");
+
+    const buffer = Buffer.from(profile.cvData, "base64");
+    const mime = profile.cvMime || "application/octet-stream";
+    const filename = profile.cvOriginalName || profile.cvFileName || "cv";
+
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename.replace(/\"/g, "")}"`);
+    return res.status(200).send(buffer);
+  } catch (err) {
+    return fail(res, 500, "Failed to load CV.", err?.message);
+  }
+}
+
+module.exports = { getProfile, getProfileCv };
 

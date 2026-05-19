@@ -8,17 +8,21 @@ datasource db {
 }
 
 model Profile {
-  id       Int    @id @default(autoincrement())
-  name     String
-  title    String
-  summary  String
-  email    String
-  phone    String
-  github   String
-  linkedin String
-  profileImageUrl String?
-  careerObjective String?
+  id              Int     @id @default(autoincrement())
+  name            String
+  title           String
+  summary         String
+  email           String
+  phone           String
+  github          String
+  linkedin        String
+  profileImageUrl  String?
+  careerObjective  String?
   strengths       String[]
+  cvOriginalName  String? @map("cv_original_name")
+  cvFileName      String? @map("cv_filename")
+  cvMime          String? @map("cv_mime")
+  cvData          String? @map("cv_data")
 
   @@map("profiles")
 }
