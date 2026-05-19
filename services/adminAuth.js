@@ -65,6 +65,17 @@ function signAdminToken(payload) {
   return jwt.sign(payload, secret, { expiresIn: TOKEN_TTL });
 }
 
+async function touchAdminActivity(email) {
+  const adminEmail = String(email || "").trim().toLowerCase();
+  if (!adminEmail) return;
+
+  await prisma.$executeRaw`ALTER TABLE admins ADD COLUMN IF NOT EXISTS last_activity TIMESTAMPTZ`;
+
+  await prisma.$executeRaw`
+    UPDATE admins SET last_activity = now() WHERE lower(email) = lower(${adminEmail})
+  `;
+}
+
 async function requireAdminAuth(req, res, next) {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -127,5 +138,6 @@ async function requireAdminAuth(req, res, next) {
 module.exports = {
   verifyAdminCredentials,
   signAdminToken,
+  touchAdminActivity,
   requireAdminAuth,
 };

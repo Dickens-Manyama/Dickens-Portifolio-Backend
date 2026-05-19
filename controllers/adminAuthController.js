@@ -1,4 +1,4 @@
-const { verifyAdminCredentials, signAdminToken } = require("../services/adminAuth");
+const { verifyAdminCredentials, signAdminToken, touchAdminActivity } = require("../services/adminAuth");
 const { fail } = require("../services/responses");
 
 async function loginAdmin(req, res) {
@@ -8,6 +8,8 @@ async function loginAdmin(req, res) {
   try {
     const result = await verifyAdminCredentials(email, password);
     if (!result.ok) return fail(res, 401, result.reason || "Invalid credentials.");
+
+    await touchAdminActivity(email);
 
     const token = signAdminToken({ email: String(email).trim().toLowerCase() });
     return res.status(200).json({ token });
