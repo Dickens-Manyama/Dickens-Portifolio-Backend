@@ -2,6 +2,7 @@ const { prisma } = require("../lib/prisma");
 const { ok, fail } = require("../services/responses");
 const mammoth = require("mammoth");
 const pdfParse = require("pdf-parse");
+const PDFDocument = require("pdfkit");
 
 const CV_DOWNLOAD_PATH = "/api/profile/cv";
 
@@ -14,6 +15,29 @@ async function ensureCvColumns() {
 
 function safeFilename(name) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 240);
+}
+
+function buildPdfBuffer(text) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "A4", margin: 48 });
+    const chunks = [];
+
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    doc.fontSize(12);
+    const lines = String(text || "").split(/\r?\n/);
+    lines.forEach((line) => {
+      doc.text(line, { width: 500, lineGap: 3 });
+    });
+    doc.end();
+  });
+}
+
+function ensurePdfName(fileName) {
+  const base = String(fileName || "cv").replace(/\.[^.]+$/, "");
+  return `${base}.pdf`;
 }
 
 async function getCvMetadata(req, res) {
@@ -37,25 +61,48 @@ async function uploadCv(req, res) {
   try {
     await ensureCvColumns();
 
-    const { filename, contentBase64, mimeType } = req.body || {};
-    if (!filename || !contentBase64) return fail(res, 400, "Missing filename or content.");
+    const { filename, contentBase64, mimeType, contentText, outputFormat } = req.body || {};
+    if (!filename || (!contentBase64 && !contentText)) return fail(res, 400, "Missing filename or content.");
 
     const profile = await prisma.profile.findFirst({ orderBy: { id: "asc" } });
     if (!profile) return fail(res, 404, "Profile not found.");
 
-    const base64 = String(contentBase64).includes(",") ? String(contentBase64).split(",").pop() : String(contentBase64);
-    const mimeFromDataUrl = String(contentBase64).startsWith("data:")
-      ? String(contentBase64).slice(5, String(contentBase64).indexOf(";base64,"))
-      : "";
+    const wantsPdf = outputFormat === "pdf";
     const clean = safeFilename(filename);
-    const storedFilename = `${Date.now()}-${clean}`;
+    const storedFilename = wantsPdf ? `${Date.now()}-${ensurePdfName(clean)}` : `${Date.now()}-${clean}`;
+
+    let buffer;
+    let mimeValue = mimeType || "application/octet-stream";
+
+    if (contentText !== undefined && contentText !== null) {
+      if (wantsPdf) {
+        buffer = await buildPdfBuffer(contentText);
+        mimeValue = "application/pdf";
+      } else {
+        buffer = Buffer.from(String(contentText), "utf8");
+        mimeValue = "text/plain";
+      }
+    } else {
+      const base64 = String(contentBase64).includes(",") ? String(contentBase64).split(",").pop() : String(contentBase64);
+      const mimeFromDataUrl = String(contentBase64).startsWith("data:")
+        ? String(contentBase64).slice(5, String(contentBase64).indexOf(";base64,"))
+        : "";
+      buffer = Buffer.from(base64, "base64");
+      mimeValue = mimeType || mimeFromDataUrl || mimeValue;
+      if (wantsPdf) {
+        buffer = await buildPdfBuffer(buffer.toString("utf8"));
+        mimeValue = "application/pdf";
+      }
+    }
+
+    const base64 = buffer.toString("base64");
 
     await prisma.profile.update({
       where: { id: profile.id },
       data: {
         cvOriginalName: filename,
         cvFileName: storedFilename,
-        cvMime: mimeType || mimeFromDataUrl || "application/octet-stream",
+        cvMime: mimeValue,
         cvData: base64,
       },
     });
@@ -63,7 +110,7 @@ async function uploadCv(req, res) {
     return ok(res, {
       filename: storedFilename,
       originalName: filename,
-      mime: mimeType || mimeFromDataUrl || "application/octet-stream",
+      mime: mimeValue,
       url: CV_DOWNLOAD_PATH,
     });
   } catch (err) {
