@@ -16,6 +16,8 @@ model Profile {
   phone    String
   github   String
   linkedin String
+  careerObjective String?
+  strengths       String[]
 
   @@map("profiles")
 }
@@ -48,5 +50,16 @@ model ContactMessage {
   createdAt DateTime @default(now())
 
   @@map("contact_messages")
+}
+
+model Education {
+  id          Int    @id @default(autoincrement())
+  institution String
+  program     String
+  description String
+  statusTag   String?
+  sortOrder   Int
+
+  @@map("education")
 }
 

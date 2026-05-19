@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function main() {
@@ -14,6 +15,16 @@ async function main() {
     phone: "0679 165 468 / 0692 501 112",
     github: "https://github.com/Dickens-Manyama",
     linkedin: "https://www.linkedin.com/in/dickens-manyama-560450327",
+    careerObjective: "Build dependable, scalable systems that solve real problems.",
+    strengths: [
+      "Practical problem solving for real-world needs",
+      "End-to-end system building (backend, APIs, data pipelines)",
+      "Comfortable across software and data science work",
+      "Fast learner who adapts to new tools",
+      "Clear, clean, and maintainable code",
+      "Collaborative communication in teams",
+      "Focus on reliability, performance, and scale",
+    ],
   };
 
   const existing = await prisma.profile.findFirst();
@@ -96,6 +107,66 @@ async function main() {
       await prisma.project.update({ where: { id: existingProject.id }, data: p });
     }
   }
+
+  // EDUCATION
+  const educationItems = [
+    {
+      institution: "EASTC",
+      program: "Eastern Africa Statistical Training Centre",
+      description: "Data science training combined with hands-on software development.",
+      statusTag: null,
+      sortOrder: 1,
+    },
+    {
+      institution: "Bachelor of Science in Data Science",
+      program: "Core data science coursework + practical projects",
+      description: "Focus on applied analytics, engineering, and automation.",
+      statusTag: null,
+      sortOrder: 2,
+    },
+    {
+      institution: "Final Year Status",
+      program: "Machine learning + ML-ready engineering mindset",
+      description: "In progress / final-year stage",
+      statusTag: "In progress / final-year stage",
+      sortOrder: 3,
+    },
+  ];
+
+  for (const item of educationItems) {
+    const existingEducation = await prisma.education.findFirst({
+      where: { institution: item.institution, program: item.program },
+    });
+    if (!existingEducation) {
+      await prisma.education.create({ data: item });
+    } else {
+      await prisma.education.update({ where: { id: existingEducation.id }, data: item });
+    }
+  }
+
+  // Ensure an admins table exists and seed admin credentials (email + hashed password)
+  // This uses raw SQL so we don't need to add a Prisma model or run migrations.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@gmail.com";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin@123";
+
+  await prisma.$executeRaw`
+    CREATE TABLE IF NOT EXISTS admins (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+  `;
+
+  const passwordHash = await bcrypt.hash(String(adminPassword), 10);
+
+  await prisma.$executeRaw`
+    INSERT INTO admins (email, password_hash)
+    VALUES (${adminEmail}, ${passwordHash})
+    ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+  `;
+
+  console.log(`[seed] admin seeded: ${adminEmail}`);
 }
 
 main()

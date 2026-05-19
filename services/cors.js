@@ -39,8 +39,8 @@ function corsOptions() {
       return callback(new Error(`CORS blocked for origin: ${origin}`));
     },
     credentials: false,
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     maxAge: 86400,
   };
 }

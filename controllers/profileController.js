@@ -7,6 +7,16 @@ function splitList(value, pattern) {
   return parts.length ? parts : [value.trim()];
 }
 
+const DEFAULT_STRENGTHS = [
+  "Practical problem solving for real-world needs",
+  "End-to-end system building (backend, APIs, data pipelines)",
+  "Comfortable across software and data science work",
+  "Fast learner who adapts to new tools",
+  "Clear, clean, and maintainable code",
+  "Collaborative communication in teams",
+  "Focus on reliability, performance, and scale",
+];
+
 function mapProfile(profile) {
   return {
     id: profile.id,
@@ -17,16 +27,11 @@ function mapProfile(profile) {
     phoneNumbers: splitList(profile.phone, /[\/|,]/),
     githubUrl: profile.github,
     linkedinUrl: profile.linkedin,
-    careerObjective: "",
-    strengths: [
-      "Practical problem solving for real-world needs",
-      "End-to-end system building (backend, APIs, data pipelines)",
-      "Comfortable across software and data science work",
-      "Fast learner who adapts to new tools",
-      "Clear, clean, and maintainable code",
-      "Collaborative communication in teams",
-      "Focus on reliability, performance, and scale",
-    ],
+    careerObjective: profile.careerObjective ?? "",
+    strengths:
+      Array.isArray(profile.strengths) && profile.strengths.length
+        ? profile.strengths
+        : DEFAULT_STRENGTHS,
   };
 }
 
