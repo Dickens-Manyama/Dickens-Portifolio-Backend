@@ -38,6 +38,7 @@ function mapProfile(profile) {
         ? profile.strengths
         : DEFAULT_STRENGTHS,
     cvUrl: profile.cvUrl || "",
+    cvOriginalName: profile.cvOriginalName || "",
   };
 }
 
@@ -49,7 +50,10 @@ async function getProfile(req, res) {
     try {
       const raw = await fs.readFile(CV_METADATA, "utf8");
       const meta = JSON.parse(raw);
-      if (meta && meta.url) profile.cvUrl = meta.url;
+      if (meta && meta.url) {
+        profile.cvUrl = meta.url;
+        profile.cvOriginalName = meta.originalName || meta.filename || "";
+      }
     } catch (e) {
       // ignore if missing
     }
