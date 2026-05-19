@@ -62,6 +62,7 @@ Server listens on `PORT` (default `5000`).
    - `DATABASE_URL` = your Render Postgres connection string
    - `PORT` = `5000`
    - `CLIENT_URL` = `https://dickens-portifolio.vercel.app`
+    - `ADMIN_INACTIVITY_TIMEOUT_MS` = optional inactivity timeout in milliseconds for admin sessions (default `300000` = 5 minutes). When set, the server tracks `last_activity` for admin accounts and will return `401` for requests after the timeout.
 3) Build command:
 
 ```bash
