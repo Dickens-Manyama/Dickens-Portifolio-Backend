@@ -15,6 +15,7 @@ function normalizeProfilePayload(body) {
     phone: String(body?.phone || "").trim(),
     github: String(body?.github || "").trim(),
     linkedin: String(body?.linkedin || "").trim(),
+    profileImageUrl: String(body?.profileImageUrl || "").trim(),
     careerObjective: String(body?.careerObjective || "").trim(),
     strengths: normalizeStrengths(body?.strengths),
   };

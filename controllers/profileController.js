@@ -27,6 +27,7 @@ function mapProfile(profile) {
     phoneNumbers: splitList(profile.phone, /[\/|,]/),
     githubUrl: profile.github,
     linkedinUrl: profile.linkedin,
+    profileImageUrl: profile.profileImageUrl ?? "",
     careerObjective: profile.careerObjective ?? "",
     strengths:
       Array.isArray(profile.strengths) && profile.strengths.length

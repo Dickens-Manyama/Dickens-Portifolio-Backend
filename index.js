@@ -16,7 +16,7 @@ app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(cors(corsOptions()));
-app.use(express.json({ limit: "250kb" }));
+app.use(express.json({ limit: "10mb" }));
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
 app.get("/health", (req, res) => {

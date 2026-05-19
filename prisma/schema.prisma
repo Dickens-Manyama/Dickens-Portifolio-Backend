@@ -16,6 +16,7 @@ model Profile {
   phone    String
   github   String
   linkedin String
+  profileImageUrl String?
   careerObjective String?
   strengths       String[]
 
