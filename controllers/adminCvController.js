@@ -1,5 +1,6 @@
 const { prisma } = require("../lib/prisma");
 const { ok, fail } = require("../services/responses");
+const mammoth = require("mammoth");
 
 const CV_DOWNLOAD_PATH = "/api/profile/cv";
 
@@ -97,15 +98,22 @@ async function getCvContent(req, res) {
     const profile = await prisma.profile.findFirst({ orderBy: { id: "asc" } });
     if (!profile || !profile.cvData) return fail(res, 404, "No CV uploaded.");
 
-    const ext = (profile.cvFileName || profile.cvOriginalName || "").toLowerCase().split(".").pop();
+    const fileName = profile.cvFileName || profile.cvOriginalName || "";
+    const ext = fileName.toLowerCase().split(".").pop();
     const textExt = [".txt", ".md", ".html", ".json"];
+    const buffer = Buffer.from(profile.cvData, "base64");
 
     if (!textExt.includes(`.${ext}`) && !(profile.cvMime || "").startsWith("text/")) {
+      if (ext === "docx" || profile.cvMime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        const extracted = await mammoth.extractRawText({ buffer });
+        return ok(res, { filename: fileName, content: extracted.value || "" });
+      }
+
       return fail(res, 415, "CV is not editable as text.");
     }
 
-    const content = Buffer.from(profile.cvData, "base64").toString("utf8");
-    return ok(res, { filename: profile.cvFileName || profile.cvOriginalName || "cv", content });
+    const content = buffer.toString("utf8");
+    return ok(res, { filename: fileName, content });
   } catch (err) {
     return fail(res, 500, "Failed to read CV content.", err?.message);
   }
