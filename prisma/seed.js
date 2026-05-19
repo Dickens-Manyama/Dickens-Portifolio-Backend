@@ -1,8 +1,21 @@
 require("dotenv").config();
 
+const fs = require("fs");
+const path = require("path");
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
+
+function getPortraitDataUri() {
+  const portraitPath = path.join(__dirname, "..", "..", "frontend", "my potrait.jpeg");
+
+  if (!fs.existsSync(portraitPath)) {
+    return "";
+  }
+
+  const imageBuffer = fs.readFileSync(portraitPath);
+  return `data:image/jpeg;base64,${imageBuffer.toString("base64")}`;
+}
 
 async function main() {
   // PROFILE (single row)
@@ -15,6 +28,7 @@ async function main() {
     phone: "0679 165 468 / 0692 501 112",
     github: "https://github.com/Dickens-Manyama",
     linkedin: "https://www.linkedin.com/in/dickens-manyama-560450327",
+    profileImageUrl: getPortraitDataUri(),
     careerObjective: "Build dependable, scalable systems that solve real problems.",
     strengths: [
       "Practical problem solving for real-world needs",
