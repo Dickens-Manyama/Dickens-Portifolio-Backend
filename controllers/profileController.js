@@ -1,5 +1,9 @@
 const { prisma } = require("../lib/prisma");
 const { ok, fail } = require("../services/responses");
+const fs = require("fs").promises;
+const path = require("path");
+
+const CV_METADATA = path.join(__dirname, "..", "public", "uploads", "cv", "current.json");
 
 function splitList(value, pattern) {
   if (!value) return [];
@@ -33,6 +37,7 @@ function mapProfile(profile) {
       Array.isArray(profile.strengths) && profile.strengths.length
         ? profile.strengths
         : DEFAULT_STRENGTHS,
+    cvUrl: profile.cvUrl || "",
   };
 }
 
@@ -40,6 +45,14 @@ async function getProfile(req, res) {
   try {
     const profile = await prisma.profile.findFirst({ orderBy: { id: "asc" } });
     if (!profile) return fail(res, 404, "Profile not found.");
+    // Attach CV metadata if present in public uploads
+    try {
+      const raw = await fs.readFile(CV_METADATA, "utf8");
+      const meta = JSON.parse(raw);
+      if (meta && meta.url) profile.cvUrl = meta.url;
+    } catch (e) {
+      // ignore if missing
+    }
     return ok(res, mapProfile(profile));
   } catch (err) {
     return fail(res, 500, "Failed to load profile.", err?.message);

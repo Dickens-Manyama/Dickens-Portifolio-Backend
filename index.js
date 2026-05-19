@@ -8,6 +8,7 @@ const morgan = require("morgan");
 const apiRoutes = require("./routes");
 const { corsOptions } = require("./services/cors");
 const { fail } = require("./services/responses");
+const path = require("path");
 
 const app = express();
 
@@ -18,6 +19,9 @@ app.use(helmet());
 app.use(cors(corsOptions()));
 app.use(express.json({ limit: "10mb" }));
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+
+// Serve public files (uploads, static assets)
+app.use("/public", express.static(path.join(__dirname, "public")));
 
 app.get("/health", (req, res) => {
   res.status(200).json({ ok: true, status: "healthy" });

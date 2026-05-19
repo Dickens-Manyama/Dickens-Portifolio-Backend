@@ -21,6 +21,7 @@ const {
   deleteAdminEducation,
 } = require("../controllers/adminEducationController");
 const { getAdminContacts, deleteAdminContact, getAdminSession } = require("../controllers/adminContactsController");
+const { getCvMetadata, uploadCv, deleteCv, getCvContent } = require("../controllers/adminCvController");
 
 router.post("/auth/login", loginAdmin);
 
@@ -47,5 +48,9 @@ router.delete("/education/:id", deleteAdminEducation);
 router.get("/contacts", getAdminContacts);
 router.delete("/contacts/:id", deleteAdminContact);
 router.get("/session", getAdminSession);
+router.get("/cv", getCvMetadata);
+router.post("/cv", uploadCv);
+router.delete("/cv", deleteCv);
+router.get("/cv/content", getCvContent);
 
 module.exports = router;
