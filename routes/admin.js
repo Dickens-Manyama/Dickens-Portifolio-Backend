@@ -2,6 +2,7 @@ const router = require("express").Router();
 const { loginAdmin } = require("../controllers/adminAuthController");
 const { requireAdminAuth } = require("../services/adminAuth");
 const { loginRateLimit } = require("../services/security");
+const { auditLogMiddleware } = require("../services/auditLogMiddleware");
 const { getAdminProfile, upsertAdminProfile } = require("../controllers/adminProfileController");
 const {
   getAdminProjects,
@@ -23,10 +24,17 @@ const {
 } = require("../controllers/adminEducationController");
 const { getAdminContacts, deleteAdminContact, getAdminSession } = require("../controllers/adminContactsController");
 const { getCvMetadata, uploadCv, deleteCv, getCvContent } = require("../controllers/adminCvController");
+const {
+  getAuditLogsController,
+  getAuditLogStatsController,
+  getAuditLogDetailController,
+  exportAuditLogsController,
+} = require("../controllers/auditLogsController");
 
 router.post("/auth/login", loginRateLimit, loginAdmin);
 
 router.use(requireAdminAuth);
+router.use(auditLogMiddleware);
 
 router.get("/profile", getAdminProfile);
 router.put("/profile", upsertAdminProfile);
@@ -53,5 +61,11 @@ router.get("/cv", getCvMetadata);
 router.post("/cv", uploadCv);
 router.delete("/cv", deleteCv);
 router.get("/cv/content", getCvContent);
+
+// Audit Log Routes (Read-Only - No Delete)
+router.get("/logs", getAuditLogsController);
+router.get("/logs/stats", getAuditLogStatsController);
+router.get("/logs/:id", getAuditLogDetailController);
+router.get("/logs/export/csv", exportAuditLogsController);
 
 module.exports = router;

@@ -68,3 +68,20 @@ model Education {
   @@map("education")
 }
 
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  adminEmail String
+  action    String
+  method    String
+  endpoint  String
+  details   String?
+  statusCode Int?
+  errorMessage String?
+  timestamp DateTime @default(now())
+  ipAddress String?
+
+  @@map("audit_logs")
+  @@index([adminEmail])
+  @@index([timestamp])
+}
+
