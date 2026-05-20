@@ -1,5 +1,5 @@
 const { getAuditLogs, getAuditLogCount, getAuditLogStats } = require("../services/auditLog");
-const { success, fail } = require("../services/responses");
+const { ok, fail } = require("../services/responses");
 
 /**
  * Get all audit logs with optional filtering and pagination
@@ -32,7 +32,7 @@ async function getAuditLogsController(req, res) {
 
     const [logs, total] = await Promise.all([getAuditLogs(options), getAuditLogCount(countOptions)]);
 
-    return success(res, 200, {
+    return ok(res, {
       logs,
       pagination: {
         skip: skipNum,
@@ -59,7 +59,7 @@ async function getAuditLogStatsController(req, res) {
 
     const stats = await getAuditLogStats(options);
 
-    return success(res, 200, stats);
+    return ok(res, stats);
   } catch (err) {
     return fail(res, 500, "Failed to fetch audit log statistics.", err?.message);
   }
@@ -97,7 +97,7 @@ async function getAuditLogDetailController(req, res) {
       }
     }
 
-    return success(res, 200, log);
+    return ok(res, log);
   } catch (err) {
     return fail(res, 500, "Failed to fetch audit log detail.", err?.message);
   }
