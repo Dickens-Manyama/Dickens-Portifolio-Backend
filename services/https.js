@@ -1,4 +1,8 @@
 function requireHttps(req, res, next) {
+  if (req.path === "/health" || req.path === "/") {
+    return next();
+  }
+
   if (process.env.NODE_ENV === "production") {
     const proto = req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
     if (String(proto).toLowerCase() !== "https") {

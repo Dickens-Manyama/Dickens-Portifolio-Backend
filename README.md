@@ -60,22 +60,25 @@ Server listens on `PORT` (default `5000`).
 1) Create a new Web Service on Render pointing at this `Backend/` folder.
 2) Add environment variables:
    - `DATABASE_URL` = your Render Postgres connection string
-   - `PORT` = `5000`
-   - `CLIENT_URL` = `https://dickens-portifolio.vercel.app`
+   - `NODE_ENV` = `production`
+   - `CLIENT_URL` = your frontend URL (e.g. `https://dickens-portifolio.vercel.app`)
+   - Do **not** set `PORT` — Render assigns it automatically.
     - `ADMIN_INACTIVITY_TIMEOUT_MS` = optional inactivity timeout in milliseconds for admin sessions (default `300000` = 5 minutes). When set, the server tracks `last_activity` for admin accounts and will return `401` for requests after the timeout.
-3) Build command:
+3) In Render service settings, set **Health Check Path** to `/health`.
+
+4) Build command:
 
 ```bash
-npm install
+npm install && npm run build
 ```
 
-4) Start command:
+5) Start command:
 
 ```bash
-node index.js
+npm start
 ```
 
-5) After first deploy, run migrations + seed (Render Shell):
+6) After first deploy, run migrations + seed (Render Shell):
 
 ```bash
 npx prisma migrate deploy

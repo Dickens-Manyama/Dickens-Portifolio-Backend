@@ -18,6 +18,15 @@ const app = express();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
+// Health checks must run before HTTPS enforcement (Render probes may omit x-forwarded-proto).
+app.get("/health", (req, res) => {
+  res.status(200).json({ ok: true, status: "healthy" });
+});
+
+app.get("/", (req, res) => {
+  res.status(200).json({ ok: true, service: "portfolio-backend" });
+});
+
 app.use(requireHttps);
 app.use(helmet());
 app.use(cors(corsOptions()));
@@ -27,10 +36,6 @@ app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
 // Serve public files (uploads, static assets)
 app.use("/public", express.static(path.join(__dirname, "public")));
-
-app.get("/health", (req, res) => {
-  res.status(200).json({ ok: true, status: "healthy" });
-});
 
 app.use("/api", apiRoutes);
 
@@ -49,7 +54,8 @@ app.use((err, req, res, next) => {
 });
 
 const port = Number(process.env.PORT || 5000);
-app.listen(port, () => {
-  console.log(`[backend] listening on port ${port}`);
+const host = process.env.HOST || "0.0.0.0";
+app.listen(port, host, () => {
+  console.log(`[backend] listening on ${host}:${port}`);
 });
 
