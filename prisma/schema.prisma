@@ -23,6 +23,7 @@ model Profile {
   cvFileName      String? @map("cv_filename")
   cvMime          String? @map("cv_mime")
   cvData          String? @map("cv_data")
+  cvSourceHtml    String? @map("cv_source_html")
 
   @@map("profiles")
 }

@@ -18,6 +18,7 @@ async function ensureCvColumns() {
   await prisma.$executeRawUnsafe(`ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS cv_filename TEXT;`);
   await prisma.$executeRawUnsafe(`ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS cv_mime TEXT;`);
   await prisma.$executeRawUnsafe(`ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS cv_data TEXT;`);
+  await prisma.$executeRawUnsafe(`ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS cv_source_html TEXT;`);
 }
 
 function safeFilename(name) {
@@ -61,9 +62,11 @@ async function uploadCv(req, res) {
     let mimeValue = mimeType || mimeForFormat(format);
     let originalName = buildFilename(filename, format);
 
+    let sourceHtml = null;
+
     if (contentHtml != null || contentText != null) {
-      const html = wrapPlainTextAsHtml(contentHtml != null ? contentHtml : contentText);
-      buffer = await exportCvBuffer(html, format);
+      sourceHtml = contentHtml != null ? String(contentHtml) : wrapPlainTextAsHtml(contentText);
+      buffer = await exportCvBuffer(sourceHtml, format);
       mimeValue = mimeForFormat(format);
     } else {
       const base64 = String(contentBase64).includes(",") ? String(contentBase64).split(",").pop() : String(contentBase64);
@@ -77,15 +80,30 @@ async function uploadCv(req, res) {
 
     const base64 = buffer.toString("base64");
 
-    await prisma.profile.update({
-      where: { id: profile.id },
-      data: {
-        cvOriginalName: originalName,
-        cvFileName: storedFilename,
-        cvMime: mimeValue,
-        cvData: base64,
-      },
-    });
+    const updateData = {
+      cvOriginalName: originalName,
+      cvFileName: storedFilename,
+      cvMime: mimeValue,
+      cvData: base64,
+    };
+
+    try {
+      await prisma.profile.update({
+        where: { id: profile.id },
+        data: { ...updateData, cvSourceHtml: sourceHtml },
+      });
+    } catch (updateErr) {
+      await prisma.profile.update({ where: { id: profile.id }, data: updateData });
+      if (sourceHtml != null) {
+        await prisma.$executeRaw`
+          UPDATE profiles SET cv_source_html = ${sourceHtml} WHERE id = ${profile.id}
+        `;
+      } else {
+        await prisma.$executeRaw`
+          UPDATE profiles SET cv_source_html = NULL WHERE id = ${profile.id}
+        `;
+      }
+    }
 
     return ok(res, {
       filename: storedFilename,
@@ -112,6 +130,7 @@ async function deleteCv(req, res) {
         cvFileName: null,
         cvMime: null,
         cvData: null,
+        cvSourceHtml: null,
       },
     });
 
@@ -128,6 +147,15 @@ async function getCvContent(req, res) {
     if (!profile || !profile.cvData) return fail(res, 404, "No CV uploaded.");
 
     const fileName = profile.cvFileName || profile.cvOriginalName || "";
+
+    if (profile.cvSourceHtml) {
+      return ok(res, {
+        filename: fileName,
+        content: stripHtml(profile.cvSourceHtml),
+        contentHtml: profile.cvSourceHtml,
+      });
+    }
+
     const ext = fileName.toLowerCase().split(".").pop();
     const textExt = [".txt", ".md", ".html", ".json"];
     const buffer = Buffer.from(profile.cvData, "base64");

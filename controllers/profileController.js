@@ -36,6 +36,7 @@ function mapProfile(profile) {
         : DEFAULT_STRENGTHS,
     cvUrl: profile.cvData ? CV_DOWNLOAD_PATH : "",
     cvOriginalName: profile.cvData ? profile.cvOriginalName || "" : "",
+    cvCacheKey: profile.cvFileName || "",
   };
 }
 
