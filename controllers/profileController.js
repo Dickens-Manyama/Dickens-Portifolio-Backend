@@ -55,8 +55,9 @@ function mapProfile(profile) {
       Array.isArray(profile.strengths) && profile.strengths.length
         ? profile.strengths
         : DEFAULT_STRENGTHS,
-    cvUrl: profile.cvData ? "/api/cv" : "",
-    cvOriginalName: profile.cvData ? profile.cvOriginalName || "" : "",
+    cvUrl: profile.cvData || profile.cvSourceHtml ? "/api/cv" : "",
+    cvOriginalName:
+      profile.cvData || profile.cvSourceHtml ? profile.cvOriginalName || "" : "",
     cvCacheKey: profile.cvFileName || "",
   };
 }

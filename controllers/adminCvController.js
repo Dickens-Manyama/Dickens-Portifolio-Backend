@@ -10,7 +10,8 @@ const {
   stripHtml,
 } = require("../services/cvExport");
 
-const CV_DOWNLOAD_PATH = "/api/profile/cv";
+/** Public download is proxied by the Vercel frontend at /api/cv */
+const CV_DOWNLOAD_PATH = "/api/cv";
 const SUPPORTED_FORMATS = ["pdf", "docx", "doc", "txt", "html"];
 
 async function ensureCvColumns() {
