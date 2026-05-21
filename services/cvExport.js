@@ -262,11 +262,19 @@ async function buildDocxBuffer(html) {
   const documentHtml = normalizeEditorHtmlForExport(html);
 
   try {
-    const result = await HTMLtoDOCX(documentHtml, null, DOCX_OPTIONS);
+    const result = await HTMLtoDOCX(documentHtml, null, {
+      ...DOCX_OPTIONS,
+      decodeUnicode: true,
+    });
     return assertValidDocx(result);
   } catch (primaryErr) {
     const plain = stripHtml(html);
-    const fallbackHtml = `<div><p>${plain.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br />")}</p></div>`;
+    const fallbackHtml = `<div><p>${plain
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br />")}</p></div>`;
     const result = await HTMLtoDOCX(fallbackHtml, null, DOCX_OPTIONS);
     const buf = assertValidDocx(result);
     if (!plain.trim()) throw primaryErr;

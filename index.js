@@ -28,7 +28,11 @@ app.get("/", (req, res) => {
 });
 
 app.use(requireHttps);
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
 app.use(cors(corsOptions()));
 app.use(express.json({ limit: "4mb" }));
 app.use(apiRateLimit);
