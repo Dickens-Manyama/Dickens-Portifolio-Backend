@@ -11,15 +11,31 @@ const FONT_SIZE_MAP = {
   7: "24pt",
 };
 
+/** Avoid custom margins — html-to-docx margins break MS Word on real CV HTML. */
 const DOCX_OPTIONS = {
-  orientation: "portrait",
   font: "Calibri",
   fontSize: 22,
-  margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
-  table: { row: { cantSplit: true } },
   footer: false,
   pageNumber: false,
 };
+
+const FONT_SIZE_KEYWORDS = {
+  "xx-small": "8pt",
+  "x-small": "9pt",
+  small: "10pt",
+  medium: "11pt",
+  large: "13pt",
+  "x-large": "16pt",
+  "xx-large": "22pt",
+};
+
+const UNSUPPORTED_STYLE_PROPS = new Set([
+  "display",
+  "unicode-bidi",
+  "direction",
+  "webkit-text-stroke",
+  "webkit-text-fill-color",
+]);
 
 function stripHtml(html) {
   return String(html || "")
@@ -74,6 +90,66 @@ function tagWithStyle(tag, attrs, styleAdditions) {
   return `<${tag}${cleaned} style="${style}">`;
 }
 
+function decodeHtmlEntities(text) {
+  return String(text || "")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&");
+}
+
+function rgbToHex(color) {
+  const match = String(color).match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (!match) return color;
+  const hex = [match[1], match[2], match[3]]
+    .map((n) => Number(n).toString(16).padStart(2, "0"))
+    .join("");
+  return `#${hex}`;
+}
+
+function normalizeStyleAttribute(styleStr) {
+  const decoded = decodeHtmlEntities(styleStr);
+  const rules = decoded
+    .split(";")
+    .map((r) => r.trim())
+    .filter(Boolean);
+  const kept = [];
+
+  for (const rule of rules) {
+    const idx = rule.indexOf(":");
+    if (idx <= 0) continue;
+    const prop = rule.slice(0, idx).trim().toLowerCase();
+    let value = rule.slice(idx + 1).trim();
+    if (UNSUPPORTED_STYLE_PROPS.has(prop) || prop.startsWith("-webkit")) continue;
+
+    if (prop === "font-size") {
+      value = FONT_SIZE_KEYWORDS[value.toLowerCase()] || value;
+      if (/^\d+px$/i.test(value)) {
+        const px = parseInt(value, 10);
+        value = `${Math.max(8, Math.round(px * 0.75))}pt`;
+      }
+    }
+    if (prop === "color" || prop === "background-color") {
+      value = rgbToHex(value);
+    }
+    if (prop === "font-family") {
+      value = value.replace(/^["']|["']$/g, "").split(",")[0].trim();
+    }
+    kept.push(`${prop}:${value}`);
+  }
+
+  return kept.join(";");
+}
+
+function normalizeInlineStyleAttributes(html) {
+  return String(html || "").replace(/style\s*=\s*["']([^"']*)["']/gi, (full, style) => {
+    const normalized = normalizeStyleAttribute(style);
+    return normalized ? `style="${normalized}"` : "";
+  });
+}
+
 function sanitizeForDocxXml(html) {
   return String(html || "")
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
@@ -84,8 +160,30 @@ function sanitizeForDocxXml(html) {
     .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, "&amp;");
 }
 
-function normalizeEditorHtmlForExport(html) {
+function cleanContentEditableHtml(html) {
   let body = sanitizeForDocxXml(String(html || "").trim());
+  if (!body) return "<p></p>";
+
+  body = body
+    .replace(/\scontenteditable\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sclass\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\sid\s*=\s*["']null["']/gi, "")
+    .replace(/\sdata-[\w-]+\s*=\s*["'][^"']*["']/gi, "");
+
+  body = body.replace(/<hr\b[^>]*\/?>/gi, () =>
+    '<hr style="border:none;border-top:2pt solid #2e5c8a;margin:12pt 0;" />'
+  );
+
+  body = normalizeInlineStyleAttributes(body);
+
+  body = body.replace(/<span\b([^>]*)>\s*<\/span>/gi, "");
+  body = body.replace(/<p\b[^>]*>\s*<\/p>/gi, "<p></p>");
+
+  return body;
+}
+
+function normalizeEditorHtmlForExport(html) {
+  let body = cleanContentEditableHtml(html);
   if (!body) body = "<p></p>";
 
   body = body.replace(/<font\b([^>]*)>([\s\S]*?)<\/font>/gi, (_, attrs, inner) => {
