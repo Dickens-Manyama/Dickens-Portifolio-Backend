@@ -172,10 +172,17 @@ function extractHrBorderColor(attrs) {
   return "#2e5c8a";
 }
 
-/** html-to-docx drops <hr>; use a bordered paragraph Word renders as a line. */
+/** Box-drawing char — html-to-docx ignores CSS borders and <hr> tags. */
+const WORD_LINE_CHAR = "\u2501";
+const WORD_LINE_REPEAT = 54;
+
+/**
+ * Replace <hr> with a coloured unicode line paragraph MS Word actually renders.
+ */
 function hrToWordLine(attrs) {
   const color = extractHrBorderColor(attrs);
-  return `<p style="margin:10pt 0;padding:0;border:none;border-top:3pt solid ${color};font-size:2pt;line-height:2pt;">&nbsp;</p>`;
+  const line = WORD_LINE_CHAR.repeat(WORD_LINE_REPEAT);
+  return `<p style="text-align:center;margin:10pt 0 10pt 0;"><span style="color:${color};font-size:9pt;">${line}</span></p>`;
 }
 
 function cleanContentEditableHtml(html) {
@@ -312,6 +319,7 @@ function buildWordHtmlDocument(html) {
   em { font-style: italic; }
   u { text-decoration: underline; }
   hr { border: none; margin: 12pt 0; }
+  .cv-line { text-align: center; margin: 10pt 0; color: #2e5c8a; font-size: 9pt; }
 </style>
 </head>
 <body>${body}</body>
