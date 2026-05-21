@@ -74,8 +74,18 @@ function tagWithStyle(tag, attrs, styleAdditions) {
   return `<${tag}${cleaned} style="${style}">`;
 }
 
+function sanitizeForDocxXml(html) {
+  return String(html || "")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<img\b[^>]*>/gi, "")
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
+    .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, "&amp;");
+}
+
 function normalizeEditorHtmlForExport(html) {
-  let body = String(html || "").trim();
+  let body = sanitizeForDocxXml(String(html || "").trim());
   if (!body) body = "<p></p>";
 
   body = body.replace(/<font\b([^>]*)>([\s\S]*?)<\/font>/gi, (_, attrs, inner) => {
@@ -165,7 +175,22 @@ function normalizeEditorHtmlForExport(html) {
     })
   );
 
-  return body;
+  return `<div>${body}</div>`;
+}
+
+function toBuffer(value) {
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof ArrayBuffer) return Buffer.from(value);
+  if (ArrayBuffer.isView(value)) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  return Buffer.from(value);
+}
+
+function assertValidDocx(buffer) {
+  const buf = toBuffer(buffer);
+  if (buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4b) {
+    throw new Error("Generated DOCX file is invalid.");
+  }
+  return buf;
 }
 
 function buildWordHtmlDocument(html) {
@@ -235,8 +260,18 @@ async function buildPdfBuffer(html) {
 
 async function buildDocxBuffer(html) {
   const documentHtml = normalizeEditorHtmlForExport(html);
-  const buffer = await HTMLtoDOCX(documentHtml, null, DOCX_OPTIONS);
-  return Buffer.from(buffer);
+
+  try {
+    const result = await HTMLtoDOCX(documentHtml, null, DOCX_OPTIONS);
+    return assertValidDocx(result);
+  } catch (primaryErr) {
+    const plain = stripHtml(html);
+    const fallbackHtml = `<div><p>${plain.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br />")}</p></div>`;
+    const result = await HTMLtoDOCX(fallbackHtml, null, DOCX_OPTIONS);
+    const buf = assertValidDocx(result);
+    if (!plain.trim()) throw primaryErr;
+    return buf;
+  }
 }
 
 async function exportCvBuffer(html, format) {
@@ -246,6 +281,7 @@ async function exportCvBuffer(html, format) {
     case "pdf":
       return buildPdfBuffer(normalized);
     case "docx":
+      return buildDocxBuffer(normalized);
     case "doc":
       return buildDocxBuffer(normalized);
     case "txt":

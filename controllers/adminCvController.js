@@ -78,6 +78,12 @@ async function uploadCv(req, res) {
       originalName = filename;
     }
 
+    if (format === "docx" || format === "doc") {
+      if (buffer.length < 4 || buffer[0] !== 0x50 || buffer[1] !== 0x4b) {
+        return fail(res, 500, "Failed to generate a valid Word document. Try simplifying formatting and save again.");
+      }
+    }
+
     const base64 = buffer.toString("base64");
 
     const updateData = {
