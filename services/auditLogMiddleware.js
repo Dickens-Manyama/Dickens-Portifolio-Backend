@@ -1,4 +1,5 @@
 const { logAdminAction } = require("./auditLog");
+const { extractClientInfo, getClientIp, withClientDetails } = require("./clientInfo");
 
 /**
  * Middleware to automatically log all admin API requests
@@ -43,10 +44,19 @@ function auditLogMiddleware(req, res, next) {
         return; // Not an authenticated admin request
       }
 
-      // Determine action based on HTTP method and endpoint
-      let action = "UNKNOWN";
       const method = req.method;
       const endpoint = req.path;
+
+      if (endpoint.includes("/auth/logout")) {
+        return;
+      }
+
+      if (method === "GET" && (endpoint.includes("/logs") || endpoint === "/session")) {
+        return;
+      }
+
+      // Determine action based on HTTP method and endpoint
+      let action = "UNKNOWN";
 
       if (method === "POST") {
         if (endpoint.includes("/projects")) action = "CREATE_PROJECT";
@@ -92,6 +102,9 @@ function auditLogMiddleware(req, res, next) {
         details.params = req.params;
       }
 
+      const clientInfo = extractClientInfo(req, req.body?.clientInfo);
+      details = withClientDetails(details, clientInfo);
+
       // Determine if there's an error
       const errorMessage =
         responseStatusCode >= 400
@@ -103,7 +116,7 @@ function auditLogMiddleware(req, res, next) {
         details,
         statusCode: responseStatusCode,
         errorMessage,
-        ipAddress: req.ip,
+        ipAddress: getClientIp(req),
       });
     } catch (err) {
       // Silently fail - don't disrupt the response

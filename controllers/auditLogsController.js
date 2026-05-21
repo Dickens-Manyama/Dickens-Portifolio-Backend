@@ -131,6 +131,9 @@ async function exportAuditLogsController(req, res) {
       "Action",
       "Method",
       "Endpoint",
+      "Device",
+      "Browser",
+      "Engine",
       "Status Code",
       "Timestamp",
       "IP Address",
@@ -138,18 +141,31 @@ async function exportAuditLogsController(req, res) {
       "Error Message",
     ];
 
-    const csvRows = logs.map((log) => [
-      log.id,
-      log.adminEmail,
-      log.action,
-      log.method,
-      log.endpoint,
-      log.statusCode || "",
-      log.timestamp ? new Date(log.timestamp).toISOString() : "",
-      log.ipAddress || "",
-      log.details ? log.details.replace(/"/g, '""') : "",
-      log.errorMessage ? log.errorMessage.replace(/"/g, '""') : "",
-    ]);
+    const csvRows = logs.map((log) => {
+      let clientInfo = {};
+      try {
+        const parsed = log.details ? JSON.parse(log.details) : null;
+        clientInfo = parsed?.clientInfo || {};
+      } catch {
+        clientInfo = {};
+      }
+
+      return [
+        log.id,
+        log.adminEmail,
+        log.action,
+        log.method,
+        log.endpoint,
+        clientInfo.deviceType || "",
+        clientInfo.browser || "",
+        clientInfo.engine || "",
+        log.statusCode || "",
+        log.timestamp ? new Date(log.timestamp).toISOString() : "",
+        log.ipAddress || "",
+        log.details ? log.details.replace(/"/g, '""') : "",
+        log.errorMessage ? log.errorMessage.replace(/"/g, '""') : "",
+      ];
+    });
 
     const csvContent = [
       csvHeaders.map((h) => `"${h}"`).join(","),

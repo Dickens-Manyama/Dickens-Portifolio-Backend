@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { loginAdmin } = require("../controllers/adminAuthController");
+const { loginAdmin, logoutAdmin } = require("../controllers/adminAuthController");
 const { requireAdminAuth } = require("../services/adminAuth");
 const { loginRateLimit } = require("../services/security");
 const { auditLogMiddleware } = require("../services/auditLogMiddleware");
@@ -35,6 +35,8 @@ router.post("/auth/login", loginRateLimit, loginAdmin);
 
 router.use(requireAdminAuth);
 router.use(auditLogMiddleware);
+
+router.post("/auth/logout", logoutAdmin);
 
 router.get("/profile", getAdminProfile);
 router.put("/profile", upsertAdminProfile);
