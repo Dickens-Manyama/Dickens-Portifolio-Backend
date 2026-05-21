@@ -2,9 +2,16 @@ const { prisma } = require("../lib/prisma");
 const { ok, fail } = require("../services/responses");
 const mammoth = require("mammoth");
 const pdfParse = require("pdf-parse");
-const PDFDocument = require("pdfkit");
+const {
+  wrapPlainTextAsHtml,
+  mimeForFormat,
+  buildFilename,
+  exportCvBuffer,
+  stripHtml,
+} = require("../services/cvExport");
 
 const CV_DOWNLOAD_PATH = "/api/profile/cv";
+const SUPPORTED_FORMATS = ["pdf", "docx", "doc", "txt", "html"];
 
 async function ensureCvColumns() {
   await prisma.$executeRawUnsafe(`ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS cv_original_name TEXT;`);
@@ -15,29 +22,6 @@ async function ensureCvColumns() {
 
 function safeFilename(name) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 240);
-}
-
-function buildPdfBuffer(text) {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 48 });
-    const chunks = [];
-
-    doc.on("data", (chunk) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-
-    doc.fontSize(12);
-    const lines = String(text || "").split(/\r?\n/);
-    lines.forEach((line) => {
-      doc.text(line, { width: 500, lineGap: 3 });
-    });
-    doc.end();
-  });
-}
-
-function ensurePdfName(fileName) {
-  const base = String(fileName || "cv").replace(/\.[^.]+$/, "");
-  return `${base}.pdf`;
 }
 
 async function getCvMetadata(req, res) {
@@ -61,27 +45,26 @@ async function uploadCv(req, res) {
   try {
     await ensureCvColumns();
 
-    const { filename, contentBase64, mimeType, contentText, outputFormat } = req.body || {};
-    if (!filename || (!contentBase64 && !contentText)) return fail(res, 400, "Missing filename or content.");
+    const { filename, contentBase64, mimeType, contentText, contentHtml, outputFormat } = req.body || {};
+    if (!filename || (!contentBase64 && contentText == null && contentHtml == null)) {
+      return fail(res, 400, "Missing filename or content.");
+    }
 
     const profile = await prisma.profile.findFirst({ orderBy: { id: "asc" } });
     if (!profile) return fail(res, 404, "Profile not found.");
 
-    const wantsPdf = outputFormat === "pdf";
-    const clean = safeFilename(filename);
-    const storedFilename = wantsPdf ? `${Date.now()}-${ensurePdfName(clean)}` : `${Date.now()}-${clean}`;
+    const format = SUPPORTED_FORMATS.includes(outputFormat) ? outputFormat : "pdf";
+    const clean = safeFilename(buildFilename(filename, format));
+    const storedFilename = `${Date.now()}-${clean}`;
 
     let buffer;
-    let mimeValue = mimeType || "application/octet-stream";
+    let mimeValue = mimeType || mimeForFormat(format);
+    let originalName = buildFilename(filename, format);
 
-    if (contentText !== undefined && contentText !== null) {
-      if (wantsPdf) {
-        buffer = await buildPdfBuffer(contentText);
-        mimeValue = "application/pdf";
-      } else {
-        buffer = Buffer.from(String(contentText), "utf8");
-        mimeValue = "text/plain";
-      }
+    if (contentHtml != null || contentText != null) {
+      const html = wrapPlainTextAsHtml(contentHtml != null ? contentHtml : contentText);
+      buffer = await exportCvBuffer(html, format);
+      mimeValue = mimeForFormat(format);
     } else {
       const base64 = String(contentBase64).includes(",") ? String(contentBase64).split(",").pop() : String(contentBase64);
       const mimeFromDataUrl = String(contentBase64).startsWith("data:")
@@ -89,10 +72,7 @@ async function uploadCv(req, res) {
         : "";
       buffer = Buffer.from(base64, "base64");
       mimeValue = mimeType || mimeFromDataUrl || mimeValue;
-      if (wantsPdf) {
-        buffer = await buildPdfBuffer(buffer.toString("utf8"));
-        mimeValue = "application/pdf";
-      }
+      originalName = filename;
     }
 
     const base64 = buffer.toString("base64");
@@ -100,7 +80,7 @@ async function uploadCv(req, res) {
     await prisma.profile.update({
       where: { id: profile.id },
       data: {
-        cvOriginalName: filename,
+        cvOriginalName: originalName,
         cvFileName: storedFilename,
         cvMime: mimeValue,
         cvData: base64,
@@ -109,9 +89,10 @@ async function uploadCv(req, res) {
 
     return ok(res, {
       filename: storedFilename,
-      originalName: filename,
+      originalName,
       mime: mimeValue,
       url: CV_DOWNLOAD_PATH,
+      format,
     });
   } catch (err) {
     return fail(res, 500, "Failed to upload CV.", err?.message);
@@ -153,20 +134,39 @@ async function getCvContent(req, res) {
 
     if (!textExt.includes(`.${ext}`) && !(profile.cvMime || "").startsWith("text/")) {
       if (ext === "docx" || profile.cvMime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-        const extracted = await mammoth.extractRawText({ buffer });
-        return ok(res, { filename: fileName, content: extracted.value || "" });
+        const [textResult, htmlResult] = await Promise.all([
+          mammoth.extractRawText({ buffer }),
+          mammoth.convertToHtml({ buffer }),
+        ]);
+        const contentHtml = htmlResult.value || wrapPlainTextAsHtml(textResult.value || "");
+        return ok(res, {
+          filename: fileName,
+          content: textResult.value || stripHtml(contentHtml),
+          contentHtml,
+        });
       }
 
       if (ext === "pdf" || profile.cvMime === "application/pdf") {
         const extracted = await pdfParse(buffer);
-        return ok(res, { filename: fileName, content: extracted.text || "" });
+        const plain = extracted.text || "";
+        return ok(res, {
+          filename: fileName,
+          content: plain,
+          contentHtml: wrapPlainTextAsHtml(plain),
+        });
       }
 
       return fail(res, 415, "CV is not editable as text.");
     }
 
-    const content = buffer.toString("utf8");
-    return ok(res, { filename: fileName, content });
+    const raw = buffer.toString("utf8");
+    const isHtml = ext === "html" || (profile.cvMime || "").includes("html");
+    const contentHtml = isHtml ? raw : wrapPlainTextAsHtml(raw);
+    return ok(res, {
+      filename: fileName,
+      content: isHtml ? stripHtml(raw) : raw,
+      contentHtml,
+    });
   } catch (err) {
     return fail(res, 500, "Failed to read CV content.", err?.message);
   }
