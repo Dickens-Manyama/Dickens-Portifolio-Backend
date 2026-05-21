@@ -160,6 +160,24 @@ function sanitizeForDocxXml(html) {
     .replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, "&amp;");
 }
 
+function extractHrBorderColor(attrs) {
+  const styleMatch = String(attrs || "").match(/style\s*=\s*["']([^"']*)["']/i);
+  if (!styleMatch) return "#2e5c8a";
+  const block = decodeHtmlEntities(styleMatch[1]);
+  const colorRule =
+    block.match(/border-top-color\s*:\s*([^;]+)/i) ||
+    block.match(/border-top\s*:\s*[^;]*?(#[0-9a-fA-F]{3,8}|rgb\([^)]+\))/i) ||
+    block.match(/background-color\s*:\s*([^;]+)/i);
+  if (colorRule) return rgbToHex(colorRule[1].trim());
+  return "#2e5c8a";
+}
+
+/** html-to-docx drops <hr>; use a bordered paragraph Word renders as a line. */
+function hrToWordLine(attrs) {
+  const color = extractHrBorderColor(attrs);
+  return `<p style="margin:10pt 0;padding:0;border:none;border-top:3pt solid ${color};font-size:2pt;line-height:2pt;">&nbsp;</p>`;
+}
+
 function cleanContentEditableHtml(html) {
   let body = sanitizeForDocxXml(String(html || "").trim());
   if (!body) return "<p></p>";
@@ -169,10 +187,6 @@ function cleanContentEditableHtml(html) {
     .replace(/\sclass\s*=\s*["'][^"']*["']/gi, "")
     .replace(/\sid\s*=\s*["']null["']/gi, "")
     .replace(/\sdata-[\w-]+\s*=\s*["'][^"']*["']/gi, "");
-
-  body = body.replace(/<hr\b[^>]*\/?>/gi, () =>
-    '<hr style="border:none;border-top:2pt solid #2e5c8a;margin:12pt 0;" />'
-  );
 
   body = normalizeInlineStyleAttributes(body);
 
@@ -201,19 +215,7 @@ function normalizeEditorHtmlForExport(html) {
   body = body.replace(/<b\b/gi, "<strong").replace(/<\/b>/gi, "</strong>");
   body = body.replace(/<i\b/gi, "<em").replace(/<\/i>/gi, "</em>");
 
-  body = body.replace(/<hr\b([^>]*)\/?>/gi, (_, attrs) => {
-    const styleMatch = attrs.match(/style\s*=\s*["']([^"']*)["']/i);
-    let borderColor = "#2e5c8a";
-    if (styleMatch) {
-      const block = styleMatch[1];
-      const colorRule =
-        block.match(/border-top-color\s*:\s*([^;]+)/i) ||
-        block.match(/border-top\s*:\s*[^;]*\s+(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)/i) ||
-        block.match(/background-color\s*:\s*([^;]+)/i);
-      if (colorRule) borderColor = colorRule[1].trim();
-    }
-    return `<hr style="border:none;border-top:2pt solid ${borderColor};margin:12pt 0;" />`;
-  });
+  body = body.replace(/<hr\b([^>]*)\/?>/gi, (_, attrs) => hrToWordLine(attrs));
 
   body = body.replace(/<ul\b([^>]*)>/gi, (_, attrs) =>
     tagWithStyle("ul", attrs, {
