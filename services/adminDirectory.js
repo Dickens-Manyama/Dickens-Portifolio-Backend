@@ -89,12 +89,21 @@ function isExpiredAdminRow(row) {
   return activeUntil.getTime() <= Date.now();
 }
 
-function parseDurationToExpiresAt(body) {
+function parseDurationToExpiresAt(body, options = {}) {
+  const required = options.required !== false;
+
   if (!body || typeof body !== "object") {
-    return { ok: false, message: "Duration is required." };
+    return required ? { ok: false, message: "Duration is required." } : { ok: true, expiresAt: null };
   }
 
-  if (body.expiresAt) {
+  const hasExplicitExpiry = body.expiresAt != null && String(body.expiresAt).trim() !== "";
+  const hasDurationValue = body.durationValue != null || body.durationMinutes != null || body.durationHours != null || body.durationDays != null;
+
+  if (!hasExplicitExpiry && !hasDurationValue) {
+    return required ? { ok: false, message: "Duration is required." } : { ok: true, expiresAt: null };
+  }
+
+  if (hasExplicitExpiry) {
     const expiresAt = new Date(body.expiresAt);
     if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) {
       return { ok: false, message: "expiresAt must be a valid future date." };
@@ -176,6 +185,52 @@ async function createAdmin({ email, password, expiresAt, createdBy }) {
   return { ok: true, admin: Array.isArray(rows) && rows[0] ? rows[0] : null };
 }
 
+async function updateAdminById(id, { email, password, expiresAt }) {
+  const admin = await getAdminById(id);
+  if (!admin) {
+    return { ok: false, status: 404, message: "Admin not found." };
+  }
+
+  if (isSuperAdminRow(admin) || isSuperAdminEmail(admin.email)) {
+    return { ok: false, status: 403, message: "The super admin account cannot be modified." };
+  }
+
+  const normalizedEmail = email != null ? normalizeEmail(email) : null;
+  if (email != null && !normalizedEmail) {
+    return { ok: false, status: 400, message: "Email is required." };
+  }
+
+  if (normalizedEmail && normalizedEmail !== normalizeEmail(admin.email)) {
+    const existing = await getAdminByEmail(normalizedEmail);
+    if (existing && Number(existing.id) !== Number(admin.id)) {
+      return { ok: false, status: 409, message: "An admin with that email already exists." };
+    }
+  }
+
+  if (expiresAt != null) {
+    const expiresDate = new Date(expiresAt);
+    if (Number.isNaN(expiresDate.getTime()) || expiresDate.getTime() <= Date.now()) {
+      return { ok: false, status: 400, message: "A valid future expiration date is required." };
+    }
+  }
+
+  const passwordHash = password != null && String(password).trim() ? await bcrypt.hash(String(password), 10) : null;
+  await ensureAdminSchema();
+
+  const rows = await prisma.$queryRaw`
+    UPDATE admins
+    SET
+      email = COALESCE(${normalizedEmail}, email),
+      password_hash = COALESCE(${passwordHash}, password_hash),
+      active_until = CASE WHEN ${expiresAt != null} THEN ${expiresAt} ELSE active_until END,
+      updated_at = now()
+    WHERE id = ${admin.id}
+    RETURNING id, email, role, active_until, created_at, updated_at, last_activity, created_by
+  `;
+
+  return { ok: true, admin: Array.isArray(rows) && rows[0] ? rows[0] : null };
+}
+
 async function deleteAdminById(id) {
   const admin = await getAdminById(id);
   if (!admin) {
@@ -242,6 +297,7 @@ module.exports = {
   parseDurationToExpiresAt,
   listAdmins,
   createAdmin,
+  updateAdminById,
   deleteAdminById,
   syncAdminActivity,
 };

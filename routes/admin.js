@@ -28,6 +28,7 @@ const {
   getAdminsController,
   createAdminController,
   deleteAdminController,
+  updateAdminController,
 } = require("../controllers/adminManagementController");
 const {
   getAuditLogsController,

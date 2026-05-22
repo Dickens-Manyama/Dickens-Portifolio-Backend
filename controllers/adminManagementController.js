@@ -1,6 +1,7 @@
 const {
   createAdmin,
   deleteAdminById,
+  updateAdminById,
   listAdmins,
   parseDurationToExpiresAt,
 } = require("../services/adminDirectory");
@@ -39,7 +40,7 @@ async function getAdminsController(req, res) {
 
 async function createAdminController(req, res) {
   const { email, password } = req.body || {};
-  const durationResult = parseDurationToExpiresAt(req.body || {});
+  const durationResult = parseDurationToExpiresAt(req.body || {}, { required: true });
   if (!durationResult.ok) {
     return fail(res, 400, durationResult.message);
   }
@@ -63,14 +64,17 @@ async function createAdminController(req, res) {
 }
 
 async function updateAdminController(req, res) {
-  const durationResult = parseDurationToExpiresAt(req.body || {});
-  if (!durationResult.ok) {
-    return fail(res, 400, durationResult.message);
-  }
+  const body = req.body || {};
+  const hasExpiryFields = body.expiresAt != null || body.durationValue != null || body.durationMinutes != null || body.durationHours != null || body.durationDays != null;
+  const durationResult = hasExpiryFields ? parseDurationToExpiresAt(body, { required: false }) : { ok: true, expiresAt: null };
+  if (!durationResult.ok) return fail(res, 400, durationResult.message);
 
   try {
-    const { updateAdminExpiryById } = require("../services/adminDirectory");
-    const result = await updateAdminExpiryById(req.params.id, durationResult.expiresAt);
+    const result = await updateAdminById(req.params.id, {
+      email: body.email,
+      password: body.password,
+      expiresAt: durationResult.expiresAt,
+    });
     if (!result.ok) {
       return fail(res, result.status || 400, result.message);
     }
