@@ -9,6 +9,7 @@ function getSessionPayload(req) {
     timeoutMs: session.timeoutMs || timeoutMs,
     lastActivityAt: session.lastActivityAt || null,
     adminExpiresAt: session.adminExpiresAt || null,
+    adminEmail: req.admin?.email || null,
     isSuperAdmin: !!session.isSuperAdmin,
   };
 }

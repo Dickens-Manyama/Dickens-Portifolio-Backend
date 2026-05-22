@@ -68,6 +68,7 @@ router.get("/session", getAdminSession);
 router.get("/admins", requireSuperAdmin, getAdminsController);
 router.post("/admins", requireSuperAdmin, createAdminController);
 router.delete("/admins/:id", requireSuperAdmin, deleteAdminController);
+router.put("/admins/:id", requireSuperAdmin, updateAdminController);
 
 router.get("/cv", getCvMetadata);
 router.post("/cv", uploadCv);

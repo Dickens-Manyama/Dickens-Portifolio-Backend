@@ -62,6 +62,24 @@ async function createAdminController(req, res) {
   }
 }
 
+async function updateAdminController(req, res) {
+  const durationResult = parseDurationToExpiresAt(req.body || {});
+  if (!durationResult.ok) {
+    return fail(res, 400, durationResult.message);
+  }
+
+  try {
+    const { updateAdminExpiryById } = require("../services/adminDirectory");
+    const result = await updateAdminExpiryById(req.params.id, durationResult.expiresAt);
+    if (!result.ok) {
+      return fail(res, result.status || 400, result.message);
+    }
+    return ok(res, serializeAdmin(result.admin));
+  } catch (err) {
+    return fail(res, 500, "Failed to update admin.", err?.message);
+  }
+}
+
 async function deleteAdminController(req, res) {
   try {
     const result = await deleteAdminById(req.params.id);
@@ -79,4 +97,5 @@ module.exports = {
   getAdminsController,
   createAdminController,
   deleteAdminController,
+  updateAdminController,
 };

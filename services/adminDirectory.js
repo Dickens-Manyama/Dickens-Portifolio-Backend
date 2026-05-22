@@ -192,6 +192,31 @@ async function deleteAdminById(id) {
   return { ok: true };
 }
 
+async function updateAdminExpiryById(id, expiresAt) {
+  const admin = await getAdminById(id);
+  if (!admin) {
+    return { ok: false, status: 404, message: "Admin not found." };
+  }
+
+  if (isSuperAdminRow(admin) || isSuperAdminEmail(admin.email)) {
+    return { ok: false, status: 403, message: "The super admin account cannot be modified." };
+  }
+
+  if (!expiresAt || Number.isNaN(new Date(expiresAt).getTime()) || new Date(expiresAt).getTime() <= Date.now()) {
+    return { ok: false, status: 400, message: "A valid future expiration date is required." };
+  }
+
+  await ensureAdminSchema();
+  const rows = await prisma.$queryRaw`
+    UPDATE admins
+    SET active_until = ${expiresAt}, updated_at = now()
+    WHERE id = ${admin.id}
+    RETURNING id, email, role, active_until, created_at, updated_at, last_activity, created_by
+  `;
+
+  return { ok: true, admin: Array.isArray(rows) && rows[0] ? rows[0] : null };
+}
+
 async function syncAdminActivity(email) {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) return;
