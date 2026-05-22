@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const { loginAdmin, logoutAdmin } = require("../controllers/adminAuthController");
-const { requireAdminAuth } = require("../services/adminAuth");
+const { requireAdminAuth, requireSuperAdmin } = require("../services/adminAuth");
 const { loginRateLimit } = require("../services/security");
 const { auditLogMiddleware } = require("../services/auditLogMiddleware");
 const { getAdminProfile, upsertAdminProfile } = require("../controllers/adminProfileController");
@@ -24,6 +24,11 @@ const {
 } = require("../controllers/adminEducationController");
 const { getAdminContacts, deleteAdminContact, getAdminSession } = require("../controllers/adminContactsController");
 const { getCvMetadata, uploadCv, deleteCv, getCvContent } = require("../controllers/adminCvController");
+const {
+  getAdminsController,
+  createAdminController,
+  deleteAdminController,
+} = require("../controllers/adminManagementController");
 const {
   getAuditLogsController,
   getAuditLogStatsController,
@@ -59,6 +64,11 @@ router.delete("/education/:id", deleteAdminEducation);
 router.get("/contacts", getAdminContacts);
 router.delete("/contacts/:id", deleteAdminContact);
 router.get("/session", getAdminSession);
+
+router.get("/admins", requireSuperAdmin, getAdminsController);
+router.post("/admins", requireSuperAdmin, createAdminController);
+router.delete("/admins/:id", requireSuperAdmin, deleteAdminController);
+
 router.get("/cv", getCvMetadata);
 router.post("/cv", uploadCv);
 router.delete("/cv", deleteCv);

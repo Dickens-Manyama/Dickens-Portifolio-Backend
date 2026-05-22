@@ -158,29 +158,46 @@ async function main() {
     }
   }
 
-  // Ensure an admins table exists and seed admin credentials (email + hashed password)
+  // Ensure an admins table exists and seed the super admin credentials (email + hashed password)
   // This uses raw SQL so we don't need to add a Prisma model or run migrations.
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@gmail.com";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin@123";
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.SEED_ADMIN_EMAIL || "admin@gmail.com";
+  const adminPassword = process.env.ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD || "Admin@123";
 
   await prisma.$executeRaw`
     CREATE TABLE IF NOT EXISTS admins (
       id SERIAL PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT now()
+      role TEXT NOT NULL DEFAULT 'ADMIN',
+      active_until TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_activity TIMESTAMPTZ,
+      created_by TEXT
     );
   `;
+
+  await prisma.$executeRaw`ALTER TABLE admins ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'ADMIN'`;
+  await prisma.$executeRaw`ALTER TABLE admins ADD COLUMN IF NOT EXISTS active_until TIMESTAMPTZ`;
+  await prisma.$executeRaw`ALTER TABLE admins ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()`;
+  await prisma.$executeRaw`ALTER TABLE admins ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`;
+  await prisma.$executeRaw`ALTER TABLE admins ADD COLUMN IF NOT EXISTS last_activity TIMESTAMPTZ`;
+  await prisma.$executeRaw`ALTER TABLE admins ADD COLUMN IF NOT EXISTS created_by TEXT`;
 
   const passwordHash = await bcrypt.hash(String(adminPassword), 10);
 
   await prisma.$executeRaw`
-    INSERT INTO admins (email, password_hash)
-    VALUES (${adminEmail}, ${passwordHash})
-    ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+    INSERT INTO admins (email, password_hash, role, active_until, created_by, created_at, updated_at)
+    VALUES (${adminEmail}, ${passwordHash}, 'SUPER_ADMIN', NULL, NULL, now(), now())
+    ON CONFLICT (email)
+    DO UPDATE SET
+      password_hash = EXCLUDED.password_hash,
+      role = EXCLUDED.role,
+      active_until = EXCLUDED.active_until,
+      updated_at = now();
   `;
 
-  console.log(`[seed] admin seeded: ${adminEmail}`);
+  console.log(`[seed] super admin seeded: ${adminEmail}`);
 }
 
 main()

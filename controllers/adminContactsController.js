@@ -8,6 +8,8 @@ function getSessionPayload(req) {
   return {
     timeoutMs: session.timeoutMs || timeoutMs,
     lastActivityAt: session.lastActivityAt || null,
+    adminExpiresAt: session.adminExpiresAt || null,
+    isSuperAdmin: !!session.isSuperAdmin,
   };
 }
 
