@@ -2,7 +2,9 @@ const { createRateLimit } = require("./rateLimit");
 
 const apiRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  // The public site polls 4 endpoints every 20s per open tab, so a low
+  // ceiling starves the frontend of data after a few minutes of browsing.
+  max: 2000,
   message: "Too many API requests. Please slow down.",
 });
 

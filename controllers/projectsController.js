@@ -9,6 +9,7 @@ function mapProject(project) {
     stack: project.techStack ?? [],
     githubUrl: project.githubLink ?? null,
     demoUrl: project.liveDemo ?? null,
+    imageUrl: project.imageUrl ?? null,
   };
 }
 

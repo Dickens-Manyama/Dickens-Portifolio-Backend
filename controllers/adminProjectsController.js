@@ -19,6 +19,7 @@ function normalizeProjectPayload(body) {
     techStack: normalizeTechStack(body?.techStack),
     githubLink: body?.githubLink ? String(body.githubLink).trim() : null,
     liveDemo: body?.liveDemo ? String(body.liveDemo).trim() : null,
+    imageUrl: body?.imageUrl ? String(body.imageUrl).trim() : null,
   };
 }
 

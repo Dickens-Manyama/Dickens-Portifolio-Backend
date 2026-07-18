@@ -44,6 +44,7 @@ model Project {
   techStack   String[]
   githubLink  String?
   liveDemo    String?
+  imageUrl    String?
 
   @@map("projects")
 }
