@@ -4,9 +4,9 @@ services:
     container_name: portfolio-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: portfolio_backend
-      POSTGRES_USER: portfolio
-      POSTGRES_PASSWORD: portfolio_local_password
+      POSTGRES_DB: portfolio
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
     ports:
       - "55432:5432"
     volumes:
